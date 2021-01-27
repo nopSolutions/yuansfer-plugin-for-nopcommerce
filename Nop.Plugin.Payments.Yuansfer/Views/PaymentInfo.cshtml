@@ -1,0 +1,29 @@
+﻿@model PaymentInfoModel
+
+@inject OrderSettings orderSettings
+
+@{
+    Layout = "";
+}
+
+@if (ViewData.ModelState.IsValid)
+{
+    <label asp-for="PaymentChannel">@T("Plugins.Payments.Yuansfer.PaymentChannel.Select")</label>
+    <select asp-for="PaymentChannel" asp-items="@Model.AvailablePaymentChannels"></select>
+}
+else
+{
+    <script asp-location="Footer">
+        $(document).ready(function () {
+            var $nexStepBtn = $('.payment-info-next-step-button');
+            if ($nexStepBtn) {
+                $nexStepBtn.hide();
+            }
+        });
+    </script>
+}
+
+@if (orderSettings.OnePageCheckoutEnabled)
+{
+    @Html.NopInlineScripts(ResourceLocation.Footer)
+}
