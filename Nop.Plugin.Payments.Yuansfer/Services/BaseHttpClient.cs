@@ -15,12 +15,6 @@ namespace Nop.Plugin.Payments.Yuansfer.Services
     /// </summary>
     public abstract class BaseHttpClient
     {
-        #region Fields
-
-        private readonly YuansferPaymentSettings _settings;
-
-        #endregion
-
         #region Properties
 
         public HttpClient HttpClient { get; }
@@ -31,10 +25,13 @@ namespace Nop.Plugin.Payments.Yuansfer.Services
 
         public BaseHttpClient(YuansferPaymentSettings settings, HttpClient httpClient)
         {
-            httpClient.BaseAddress = new Uri(settings.BaseApiUrl);
+            if (!Uri.TryCreate(settings.BaseApiUrl, UriKind.Absolute, out var baseAddress))
+                baseAddress = new Uri(Defaults.Api.SandboxBaseUrl);
+
+            httpClient.BaseAddress = baseAddress;
             httpClient.Timeout = TimeSpan.FromSeconds(Defaults.Api.DefaultTimeout);
             httpClient.DefaultRequestHeaders.Add(HeaderNames.UserAgent, Defaults.Api.UserAgent);
-            _settings = settings;
+
             HttpClient = httpClient;
         }
 

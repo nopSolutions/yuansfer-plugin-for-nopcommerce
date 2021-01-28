@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.Extensions.Primitives;
 using Newtonsoft.Json;
 using Nop.Core;
 using Nop.Core.Domain.Directory;
@@ -114,11 +116,12 @@ namespace Nop.Plugin.Payments.Yuansfer
             if (storeCurrency == null)
                 throw new NopException("Primary store currency is not set");
 
-            var vendor = _yuansferService.GetCustomerPaymentChannel(_workContext.CurrentCustomer);
-            if (vendor == null)
-                throw new NopException("The payment channel is not set");
-
             var order = postProcessPaymentRequest.Order;
+            var orderCustomValues = _paymentService.DeserializeCustomValues(order);
+
+            var paymentChannelKey = _localizationService.GetResource("Plugins.Payments.Yuansfer.PaymentChannel.Key");
+            if (!orderCustomValues.TryGetValue(paymentChannelKey, out var vendor))
+                throw new NopException("The payment channel is not set");
 
             var goods = new List<object>();
             var orderItems = _orderService.GetOrderItems(order.Id);
@@ -137,7 +140,7 @@ namespace Nop.Plugin.Payments.Yuansfer
                     var attributeInfo = _productAttributeFormatter
                         .FormatAttributes(product, item.AttributesXml, customer, ", ");
 
-                    productName = $"{productName} ({attributeInfo})";
+                    productName = $"{product.Name} ({attributeInfo})";
                 }
 
                 goods.Add(new { goods_name = productName, quantity = item.Quantity.ToString() });
@@ -152,9 +155,9 @@ namespace Nop.Plugin.Payments.Yuansfer
             {
                 MerchantId = _yuansferPaymentSettings.MerchantId,
                 StoreId = _yuansferPaymentSettings.StoreId,
-                Vendor = vendor,
+                Vendor = vendor.ToString(),
                 Terminal = "ONLINE",
-                Amount = order.OrderTotal.ToString(),
+                Amount = order.OrderTotal.ToString(CultureInfo.InvariantCulture),
                 Currency = storeCurrency.CurrencyCode,
                 SettleCurrency = storeCurrency.CurrencyCode,
                 CallbackUrl = callbackUrl,
@@ -240,7 +243,7 @@ namespace Nop.Plugin.Payments.Yuansfer
             {
                 MerchantId = _yuansferPaymentSettings.MerchantId,
                 StoreId = _yuansferPaymentSettings.StoreId,
-                RefundAmount = refundPaymentRequest.AmountToRefund.ToString(),
+                RefundAmount = refundPaymentRequest.AmountToRefund.ToString(CultureInfo.InvariantCulture),
                 Currency = storeCurrency.CurrencyCode,
                 SettleCurrency = storeCurrency.CurrencyCode,
                 TransactionId = refundPaymentRequest.Order.CaptureTransactionId
@@ -332,8 +335,12 @@ namespace Nop.Plugin.Payments.Yuansfer
             if (!_yuansferService.IsConfigured())
                 errors.Add(_localizationService.GetResource("Plugins.Payments.Yuansfer.IsNotConfigured"));
 
-            if (!_yuansferService.IsAvailablePaymentChannel(form["PaymentChannel"]))
+            if (!form.TryGetValue(nameof(PaymentInfoModel.PaymentChannel), out var paymentChannel) ||
+                StringValues.IsNullOrEmpty(paymentChannel) || 
+                !_yuansferService.IsAvailablePaymentChannel(paymentChannel))
+            {
                 errors.Add(_localizationService.GetResource("Plugins.Payments.Yuansfer.PaymentChannel.IsNotAvailable"));
+            }
 
             return errors;
         }
@@ -345,10 +352,13 @@ namespace Nop.Plugin.Payments.Yuansfer
         /// <returns>Payment info holder</returns>
         public ProcessPaymentRequest GetPaymentInfo(IFormCollection form)
         {
-            _yuansferService.SetCustomerPaymentChannel(
-                _workContext.CurrentCustomer, form["PaymentChannel"]);
+            var paymentRequest = new ProcessPaymentRequest();
 
-            return new ProcessPaymentRequest();
+            var paymentChannel = form[nameof(PaymentInfoModel.PaymentChannel)].ToString();
+            var paymentChannelKey = _localizationService.GetResource("Plugins.Payments.Yuansfer.PaymentChannel.Key");
+            paymentRequest.CustomValues.Add(paymentChannelKey, paymentChannel);
+
+            return paymentRequest;
         }
 
         /// <summary>
@@ -387,6 +397,8 @@ namespace Nop.Plugin.Payments.Yuansfer
                 ["Plugins.Payments.Yuansfer.IsNotConfigured"] = "Plugin isn't configured.",
                 ["Plugins.Payments.Yuansfer.PaymentChannel.IsNotAvailable"] = "The payment channel isn't available.",
                 ["Plugins.Payments.Yuansfer.PaymentChannel.Select"] = "Select the wallet:",
+                ["Plugins.Payments.Yuansfer.PaymentChannel.Key"] = "The wallet",
+                ["Plugins.Payments.Yuansfer.PaymentMethodDescription"] = "Pay by Yuansfer",
                 ["Plugins.Payments.Yuansfer.Fields.ApiToken"] = "API token",
                 ["Plugins.Payments.Yuansfer.Fields.ApiToken.Required"] = "The API token is required.",
                 ["Plugins.Payments.Yuansfer.Fields.ApiToken.Hint"] = "Enter the token to sign the API requests.",
@@ -406,7 +418,6 @@ namespace Nop.Plugin.Payments.Yuansfer
                 ["Plugins.Payments.Yuansfer.Fields.AdditionalFee.Hint"] = "Enter additional fee to charge your customers.",
                 ["Plugins.Payments.Yuansfer.Fields.AdditionalFeePercentage"] = "Additional fee. Use percentage",
                 ["Plugins.Payments.Yuansfer.Fields.AdditionalFeePercentage.Hint"] = "Determines whether to apply a percentage additional fee to the order total. If not enabled, a fixed value is used.",
-                ["Plugins.Payments.Yuansfer.PaymentMethodDescription"] = "Pay by Yuansfer",
             });
 
             base.Install();
