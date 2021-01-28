@@ -399,6 +399,7 @@ namespace Nop.Plugin.Payments.Yuansfer
                 ["Plugins.Payments.Yuansfer.PaymentChannel.Select"] = "Select the wallet:",
                 ["Plugins.Payments.Yuansfer.PaymentChannel.Key"] = "The wallet",
                 ["Plugins.Payments.Yuansfer.PaymentMethodDescription"] = "Pay by Yuansfer",
+                ["Plugins.Payments.Yuansfer.RoundingWarning"] = "It looks like you have \"ShoppingCartSettings.RoundPricesDuringCalculation\" setting disabled. Keep in mind that this can lead to a discrepancy of the order total amount, as PayPal only rounds to two decimals.",
                 ["Plugins.Payments.Yuansfer.Fields.ApiToken"] = "API token",
                 ["Plugins.Payments.Yuansfer.Fields.ApiToken.Required"] = "The API token is required.",
                 ["Plugins.Payments.Yuansfer.Fields.ApiToken.Hint"] = "Enter the token to sign the API requests.",

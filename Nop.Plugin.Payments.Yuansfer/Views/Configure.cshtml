@@ -1,7 +1,17 @@
 ﻿@model ConfigurationModel
+
+@inject ShoppingCartSettings shoppingCartSettings
+
 @{
     Layout = "_ConfigurePlugin";
 }
+
+<style>
+    .round-prices-warning {
+        color: orange;
+        padding: 5px 0 10px 0;
+    }
+</style>
 
 @await Component.InvokeAsync("StoreScopeConfiguration")
 
@@ -81,6 +91,10 @@
                                 }).data("kendoMultiSelect");
                             });
                         </script>
+                        @if (!shoppingCartSettings.RoundPricesDuringCalculation)
+                        {
+                            <div class="round-prices-warning">@T("Plugins.Payments.Yuansfer.RoundingWarning")</div>
+                        }
                     </div>
                 </div>
                 <div class="form-group">

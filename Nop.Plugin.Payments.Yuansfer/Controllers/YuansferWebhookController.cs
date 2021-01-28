@@ -1,10 +1,12 @@
 ﻿using System;
 using Microsoft.AspNetCore.Mvc;
+using Nop.Core;
 using Nop.Core.Domain.Orders;
 using Nop.Plugin.Payments.Yuansfer.Extensions;
 using Nop.Plugin.Payments.Yuansfer.Models;
 using Nop.Services.Logging;
 using Nop.Services.Orders;
+using Nop.Services.Payments;
 
 namespace Nop.Plugin.Payments.Yuansfer.Controllers
 {
@@ -13,6 +15,7 @@ namespace Nop.Plugin.Payments.Yuansfer.Controllers
         #region Fields
 
         private readonly ILogger _logger;
+        private readonly IPaymentPluginManager _paymentPluginManager;
         private readonly IOrderService _orderService;
         private readonly IOrderProcessingService _orderProcessingService;
         private readonly YuansferPaymentSettings _yuansferPaymentSettings;
@@ -23,12 +26,14 @@ namespace Nop.Plugin.Payments.Yuansfer.Controllers
 
         public YuansferWebhookController(
             ILogger logger,
+            IPaymentPluginManager paymentPluginManager,
             IOrderService orderService,
             IOrderProcessingService orderProcessingService,
             YuansferPaymentSettings yuansferPaymentSettings
         )
         {
             _logger = logger;
+            _paymentPluginManager = paymentPluginManager;
             _orderService = orderService;
             _orderProcessingService = orderProcessingService;
             _yuansferPaymentSettings = yuansferPaymentSettings;
@@ -41,6 +46,9 @@ namespace Nop.Plugin.Payments.Yuansfer.Controllers
         [HttpPost]
         public IActionResult SecurePayWebhook(SecurePayWebhookRequest request)
         {
+            if (!(_paymentPluginManager.LoadPluginBySystemName(Defaults.SystemName) is YuansferPaymentProcessor processor) || !_paymentPluginManager.IsPluginActive(processor))
+                throw new NopException("Yuansfer module cannot be loaded");
+
             if (!ModelState.IsValid)
                 return Ok();
 
