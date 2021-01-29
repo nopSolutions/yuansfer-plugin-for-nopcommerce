@@ -1,6 +1,7 @@
 ﻿using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Nop.Core;
+using Nop.Core.Domain.Orders;
 using Nop.Plugin.Payments.Yuansfer.Models;
 using Nop.Services.Configuration;
 using Nop.Services.Localization;
@@ -24,6 +25,7 @@ namespace Nop.Plugin.Payments.Yuansfer.Controllers
         private readonly IPermissionService _permissionService;
         private readonly ISettingService _settingService;
         private readonly IStoreContext _storeContext;
+        private readonly ShoppingCartSettings _shoppingCartSettings;
 
         #endregion
 
@@ -34,7 +36,8 @@ namespace Nop.Plugin.Payments.Yuansfer.Controllers
             INotificationService notificationService,
             IPermissionService permissionService,
             ISettingService settingService,
-            IStoreContext storeContext
+            IStoreContext storeContext,
+            ShoppingCartSettings shoppingCartSettings
         )
         {
             _localizationService = localizationService;
@@ -42,6 +45,7 @@ namespace Nop.Plugin.Payments.Yuansfer.Controllers
             _permissionService = permissionService;
             _settingService = settingService;
             _storeContext = storeContext;
+            _shoppingCartSettings = shoppingCartSettings;
         }
 
         #endregion
@@ -79,6 +83,14 @@ namespace Nop.Plugin.Payments.Yuansfer.Controllers
                 model.PaymentChannels_OverrideForStore = _settingService.SettingExists(yuansferPaymentSettings, x => x.PaymentChannels, storeScope);
                 model.AdditionalFee_OverrideForStore = _settingService.SettingExists(yuansferPaymentSettings, x => x.AdditionalFee, storeScope);
                 model.AdditionalFeePercentage_OverrideForStore = _settingService.SettingExists(yuansferPaymentSettings, x => x.AdditionalFeePercentage, storeScope);
+            }
+
+            //prices and total aren't rounded, so display warning
+            if (!_shoppingCartSettings.RoundPricesDuringCalculation)
+            {
+                var url = Url.Action("AllSettings", "Setting", new { settingName = nameof(ShoppingCartSettings.RoundPricesDuringCalculation) });
+                var warning = string.Format(_localizationService.GetResource("Plugins.Payments.Yuansfer.RoundingWarning"), url);
+                _notificationService.WarningNotification(warning, false);
             }
 
             return View("~/Plugins/Payments.Yuansfer/Views/Configure.cshtml", model);

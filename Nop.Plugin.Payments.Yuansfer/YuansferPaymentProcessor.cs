@@ -18,6 +18,7 @@ using Nop.Services.Catalog;
 using Nop.Services.Configuration;
 using Nop.Services.Directory;
 using Nop.Services.Localization;
+using Nop.Services.Messages;
 using Nop.Services.Orders;
 using Nop.Services.Payments;
 using Nop.Services.Plugins;
@@ -37,6 +38,7 @@ namespace Nop.Plugin.Payments.Yuansfer
         private readonly ICurrencyService _currencyService;
         private readonly IOrderService _orderService;
         private readonly ILocalizationService _localizationService;
+        private readonly INotificationService _notificationService;
         private readonly IPaymentService _paymentService;
         private readonly IProductService _productService;
         private readonly IProductAttributeFormatter _productAttributeFormatter;
@@ -59,6 +61,7 @@ namespace Nop.Plugin.Payments.Yuansfer
             ICurrencyService currencyService,
             IOrderService orderService,
             ILocalizationService localizationService,
+            INotificationService notificationService,
             IPaymentService paymentService,
             IProductService productService,
             IProductAttributeFormatter productAttributeFormatter, 
@@ -77,6 +80,7 @@ namespace Nop.Plugin.Payments.Yuansfer
             _currencyService = currencyService;
             _orderService = orderService;
             _localizationService = localizationService;
+            _notificationService = notificationService;
             _paymentService = paymentService;
             _productService = productService;
             _productAttributeFormatter = productAttributeFormatter;
@@ -150,7 +154,7 @@ namespace Nop.Plugin.Payments.Yuansfer
             var urlHelper = _urlHelperFactory.GetUrlHelper(_actionContextAccessor.ActionContext);
             var callbackUrl = urlHelper.RouteUrl(Defaults.CheckoutCompletedRouteName, new { orderId = order.Id }, currentRequestProtocol);
             var ipnUrl = urlHelper.RouteUrl(Defaults.SecurePayWebhookRouteName, null, currentRequestProtocol);
-
+            
             var request = new SecurePayRequest
             {
                 MerchantId = _yuansferPaymentSettings.MerchantId,
@@ -183,10 +187,16 @@ namespace Nop.Plugin.Payments.Yuansfer
             request.VerifySign = CommonHelpers.GenerateSign(_yuansferPaymentSettings.ApiToken, signingParams);
 
             var response = _yuansferApi.SecurePayAsync(request).GetAwaiter().GetResult();
-            if (response?.Payload == null)
-                throw new NopException($"Error when calling Yuansfer secure pay endpoint. Code: {response?.Code}, Message: {response?.Message}.");
+            if (!string.IsNullOrEmpty(response?.Payload?.CashierUrl))
+                _httpContextAccessor.HttpContext.Response.Redirect(response.Payload.CashierUrl);
+            else
+            {
+                _notificationService.ErrorNotification(
+                    $"Error when calling Yuansfer secure pay endpoint. Code: {response?.Code}, Message: {response?.Message}.");
 
-            _httpContextAccessor.HttpContext.Response.Redirect(response.Payload.CashierUrl);
+                var failUrl = urlHelper.RouteUrl(Defaults.OrderDetailsRouteName, new { orderId = order.Id }, _webHelper.CurrentRequestProtocol);
+                _httpContextAccessor.HttpContext.Response.Redirect(failUrl);
+            }    
         }
 
         /// <summary>
@@ -262,7 +272,7 @@ namespace Nop.Plugin.Payments.Yuansfer
 
             var response = _yuansferApi.CreateRefundAsync(request).GetAwaiter().GetResult();
             if (response?.Payload == null)
-                return new RefundPaymentResult { Errors = new[] { $"Error when calling Yuansfer secure pay endpoint. Code: {response?.Code}, Message: {response?.Message}." } };
+                return new RefundPaymentResult { Errors = new[] { $"Error when calling Yuansfer refund endpoint. Code: {response?.Code}, Message: {response?.Message}." } };
 
             if (response.Payload.Status != "success")
                 return new RefundPaymentResult { Errors = new[] { "Order refund is invalid" } };
@@ -399,7 +409,7 @@ namespace Nop.Plugin.Payments.Yuansfer
                 ["Plugins.Payments.Yuansfer.PaymentChannel.Select"] = "Select the wallet:",
                 ["Plugins.Payments.Yuansfer.PaymentChannel.Key"] = "The wallet",
                 ["Plugins.Payments.Yuansfer.PaymentMethodDescription"] = "Pay by Yuansfer",
-                ["Plugins.Payments.Yuansfer.RoundingWarning"] = "It looks like you have \"ShoppingCartSettings.RoundPricesDuringCalculation\" setting disabled. Keep in mind that this can lead to a discrepancy of the order total amount, as PayPal only rounds to two decimals.",
+                ["Plugins.Payments.Yuansfer.RoundingWarning"] = "It looks like you have <a href=\"{0}\" target=\"_blank\">RoundPricesDuringCalculation</a> setting disabled. Keep in mind that this can lead to a discrepancy of the order total amount, as some payment services rounds to two decimals only.",
                 ["Plugins.Payments.Yuansfer.Fields.ApiToken"] = "API token",
                 ["Plugins.Payments.Yuansfer.Fields.ApiToken.Required"] = "The API token is required.",
                 ["Plugins.Payments.Yuansfer.Fields.ApiToken.Hint"] = "Enter the token to sign the API requests.",

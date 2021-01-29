@@ -30,6 +30,11 @@ namespace Nop.Plugin.Payments.Yuansfer
         public static string SecurePayWebhookRouteName => "YuansferSecurePayWebHook";
 
         /// <summary>
+        /// Gets the order details route name
+        /// </summary>
+        public static string OrderDetailsRouteName => "OrderDetails";
+
+        /// <summary>
         /// Gets a name of the view component to display payment info in public store
         /// </summary>
         public const string PAYMENT_INFO_VIEW_COMPONENT_NAME = "YuansferPaymentInfo";
