@@ -404,6 +404,14 @@ namespace Nop.Plugin.Payments.Yuansfer
             //locales
             _localizationService.AddPluginLocaleResource(new Dictionary<string, string>
             {
+                ["Plugins.Payments.Yuansfer.Instructions"] = @"
+                    <p>
+                        1. <a href=""https://onlinecontract.yuansfer.com/#/step1"" target=""_blank"">Apply</a> for a Yuansfer Merchant Account
+                        <br />2. Enter the Base API URL, Merchant No, Store No, and API token provided by Yuansfer
+                        <br />3. Choose wallets you would like to enable from the Payment Channels drop down menu
+                        <br />4. Click Save.
+	                    <br />
+                    </p>",
                 ["Plugins.Payments.Yuansfer.IsNotConfigured"] = "Plugin isn't configured.",
                 ["Plugins.Payments.Yuansfer.PaymentChannel.IsNotAvailable"] = "The payment channel isn't available.",
                 ["Plugins.Payments.Yuansfer.PaymentChannel.Select"] = "Select the wallet:",

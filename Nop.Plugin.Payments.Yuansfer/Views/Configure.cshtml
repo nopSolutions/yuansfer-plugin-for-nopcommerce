@@ -10,6 +10,7 @@
     <div class="panel-group">
         <div class="panel panel-default">
             <div class="panel-body">
+                @Html.Raw(T("Plugins.Payments.Yuansfer.Instructions"))
                 <div class="form-group">
                     <div class="col-md-3">
                         <nop-override-store-checkbox asp-for="BaseApiUrl_OverrideForStore" asp-input="BaseApiUrl" asp-store-scope="@Model.ActiveStoreScopeConfiguration" />
