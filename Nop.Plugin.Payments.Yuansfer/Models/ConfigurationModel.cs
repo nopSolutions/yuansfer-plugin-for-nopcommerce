@@ -1,7 +1,8 @@
-﻿using Nop.Web.Framework.Mvc.ModelBinding;
-using Nop.Web.Framework.Models;
+﻿using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using System.Collections.Generic;
+using Nop.Web.Framework.Models;
+using Nop.Web.Framework.Mvc.ModelBinding;
 
 namespace Nop.Plugin.Payments.Yuansfer.Models
 {
@@ -67,6 +68,10 @@ namespace Nop.Plugin.Payments.Yuansfer.Models
         [NopResourceDisplayName("Plugins.Payments.Yuansfer.Fields.AdditionalFee")]
         public decimal AdditionalFee { get; set; }
         public bool AdditionalFee_OverrideForStore { get; set; }
+
+        [NopResourceDisplayName("Plugins.Payments.Yuansfer.Fields.MerchantEmail")]
+        [DataType(DataType.EmailAddress)]
+        public string MerchantEmail { get; set; }
 
         #endregion
 

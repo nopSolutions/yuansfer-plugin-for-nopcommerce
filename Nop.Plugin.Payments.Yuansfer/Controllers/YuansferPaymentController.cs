@@ -1,9 +1,12 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Nop.Core;
 using Nop.Core.Domain.Orders;
 using Nop.Plugin.Payments.Yuansfer.Models;
+using Nop.Plugin.Payments.Yuansfer.Services;
 using Nop.Services.Configuration;
+using Nop.Services.Customers;
 using Nop.Services.Localization;
 using Nop.Services.Messages;
 using Nop.Services.Security;
@@ -19,33 +22,40 @@ namespace Nop.Plugin.Payments.Yuansfer.Controllers
     public class YuansferPaymentController : BasePaymentController
     {
         #region Fields
-        
+
+        private readonly ICustomerService _customerService;
         private readonly ILocalizationService _localizationService;
         private readonly INotificationService _notificationService;
         private readonly IPermissionService _permissionService;
         private readonly ISettingService _settingService;
         private readonly IStoreContext _storeContext;
+        private readonly IWorkContext _workContext;
         private readonly ShoppingCartSettings _shoppingCartSettings;
+        private readonly YuansferApi _yuansferApi;
 
         #endregion
 
         #region Ctor
 
-        public YuansferPaymentController(
+        public YuansferPaymentController(ICustomerService customerService,
             ILocalizationService localizationService,
             INotificationService notificationService,
             IPermissionService permissionService,
             ISettingService settingService,
             IStoreContext storeContext,
-            ShoppingCartSettings shoppingCartSettings
-        )
+            IWorkContext workContext,
+            ShoppingCartSettings shoppingCartSettings,
+            YuansferApi yuansferApi)
         {
+            _customerService = customerService;
             _localizationService = localizationService;
             _notificationService = notificationService;
             _permissionService = permissionService;
             _settingService = settingService;
             _storeContext = storeContext;
+            _workContext = workContext;
             _shoppingCartSettings = shoppingCartSettings;
+            _yuansferApi = yuansferApi;
         }
 
         #endregion
@@ -129,11 +139,37 @@ namespace Nop.Plugin.Payments.Yuansfer.Controllers
             _settingService.SaveSettingOverridablePerStore(yuansferPaymentSettings, x => x.PaymentChannels, model.PaymentChannels_OverrideForStore, storeScope, false);
             _settingService.SaveSettingOverridablePerStore(yuansferPaymentSettings, x => x.AdditionalFee, model.AdditionalFee_OverrideForStore, storeScope, false);
             _settingService.SaveSettingOverridablePerStore(yuansferPaymentSettings, x => x.AdditionalFeePercentage, model.AdditionalFeePercentage_OverrideForStore, storeScope, false);
-            
+
             //now clear settings cache
             _settingService.ClearCache();
 
             _notificationService.SuccessNotification(_localizationService.GetResource("Admin.Plugins.Saved"));
+
+            return Configure();
+        }
+
+        [HttpPost, ActionName("Configure")]
+        [FormValueRequired("request-demo")]
+        public virtual IActionResult RequestDemo(ConfigurationModel model)
+        {
+            if (!_permissionService.Authorize(StandardPermissionProvider.ManagePaymentMethods))
+                return AccessDeniedView();
+
+            try
+            {
+                var request = new MerchantInfoRequest
+                {
+                    Email = model.MerchantEmail,
+                    ClientName = _customerService.GetCustomerFullName(_workContext.CurrentCustomer),
+                    Plugin = Defaults.Api.UserAgent
+                };
+                var response = _yuansferApi.RequestDemoAsync(request).Result;
+                _notificationService.SuccessNotification(_localizationService.GetResource("Plugins.Payments.Yuansfer.Fields.MerchantEmail.Success"));
+            }
+            catch (Exception exception)
+            {
+                _notificationService.ErrorNotification(exception);
+            }
 
             return Configure();
         }

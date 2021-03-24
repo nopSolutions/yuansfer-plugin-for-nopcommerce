@@ -10,6 +10,24 @@
     <div class="panel-group">
         <div class="panel panel-default">
             <div class="panel-body">
+                <div class="form-group">
+                    <div class="col-md-3">
+                        <nop-label asp-for="MerchantEmail" />
+                    </div>
+                    <div class="col-md-9">
+                        <div class="input-group">
+                            <nop-editor asp-for="MerchantEmail" />
+                            <div class="input-group-btn">
+                                <input type="submit" name="request-demo" class="btn btn-info" value="@T("Plugins.Payments.Yuansfer.Fields.MerchantEmail.Button")" />
+                            </div>
+                        </div>
+                        <span asp-validation-for="MerchantEmail"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="panel panel-default">
+            <div class="panel-body">
                 @Html.Raw(T("Plugins.Payments.Yuansfer.Instructions"))
                 <div class="form-group">
                     <div class="col-md-3">

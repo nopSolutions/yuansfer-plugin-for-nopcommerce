@@ -64,7 +64,7 @@ namespace Nop.Plugin.Payments.Yuansfer
             INotificationService notificationService,
             IPaymentService paymentService,
             IProductService productService,
-            IProductAttributeFormatter productAttributeFormatter, 
+            IProductAttributeFormatter productAttributeFormatter,
             ISettingService settingService,
             IHttpContextAccessor httpContextAccessor,
             IUrlHelperFactory urlHelperFactory,
@@ -154,7 +154,7 @@ namespace Nop.Plugin.Payments.Yuansfer
             var urlHelper = _urlHelperFactory.GetUrlHelper(_actionContextAccessor.ActionContext);
             var callbackUrl = urlHelper.RouteUrl(Defaults.CheckoutCompletedRouteName, new { orderId = order.Id }, currentRequestProtocol);
             var ipnUrl = urlHelper.RouteUrl(Defaults.SecurePayWebhookRouteName, null, currentRequestProtocol);
-            
+
             var request = new SecurePayRequest
             {
                 MerchantId = _yuansferPaymentSettings.MerchantId,
@@ -196,7 +196,7 @@ namespace Nop.Plugin.Payments.Yuansfer
 
                 var failUrl = urlHelper.RouteUrl(Defaults.OrderDetailsRouteName, new { orderId = order.Id }, _webHelper.CurrentRequestProtocol);
                 _httpContextAccessor.HttpContext.Response.Redirect(failUrl);
-            }    
+            }
         }
 
         /// <summary>
@@ -346,7 +346,7 @@ namespace Nop.Plugin.Payments.Yuansfer
                 errors.Add(_localizationService.GetResource("Plugins.Payments.Yuansfer.IsNotConfigured"));
 
             if (!form.TryGetValue(nameof(PaymentInfoModel.PaymentChannel), out var paymentChannel) ||
-                StringValues.IsNullOrEmpty(paymentChannel) || 
+                StringValues.IsNullOrEmpty(paymentChannel) ||
                 !_yuansferService.IsAvailablePaymentChannel(paymentChannel))
             {
                 errors.Add(_localizationService.GetResource("Plugins.Payments.Yuansfer.PaymentChannel.IsNotAvailable"));
@@ -406,7 +406,7 @@ namespace Nop.Plugin.Payments.Yuansfer
             {
                 ["Plugins.Payments.Yuansfer.Instructions"] = @"
                     <p>
-                        1. <a href=""https://onlinecontract.yuansfer.com/#/step1"" target=""_blank"">Apply</a> for a Yuansfer Merchant Account
+                        1. <a href=""https://onlinecontract.yuansfer.com/?utm_source=nopCommerce&utm_medium=merchant_dashboard&utm_campaign=extension_configuration_cta#/step1"" target=""_blank"">Apply</a> for a Yuansfer Merchant Account
                         <br />2. Enter the Base API URL, Merchant No, Store No, and API token provided by Yuansfer
                         <br />3. Choose wallets you would like to enable from the Payment Channels drop down menu
                         <br />4. Click Save.
@@ -424,6 +424,10 @@ namespace Nop.Plugin.Payments.Yuansfer
                 ["Plugins.Payments.Yuansfer.Fields.BaseApiUrl"] = "Base API URL",
                 ["Plugins.Payments.Yuansfer.Fields.BaseApiUrl.Required"] = "The base API URL is required.",
                 ["Plugins.Payments.Yuansfer.Fields.BaseApiUrl.Hint"] = "Enter the base URL of the Yuansfer environment API.",
+                ["Plugins.Payments.Yuansfer.Fields.MerchantEmail"] = "Request free Yuansfer product demo",
+                ["Plugins.Payments.Yuansfer.Fields.MerchantEmail.Button"] = "Request",
+                ["Plugins.Payments.Yuansfer.Fields.MerchantEmail.Hint"] = "Enter your email address.",
+                ["Plugins.Payments.Yuansfer.Fields.MerchantEmail.Success"] = "Thank you for contacting. A member of Yuansfer team will respond to you shortly.",
                 ["Plugins.Payments.Yuansfer.Fields.MerchantId"] = "Merchant No.",
                 ["Plugins.Payments.Yuansfer.Fields.MerchantId.Required"] = "The merchant No. is required.",
                 ["Plugins.Payments.Yuansfer.Fields.MerchantId.Hint"] = "Enter the merchant No.",

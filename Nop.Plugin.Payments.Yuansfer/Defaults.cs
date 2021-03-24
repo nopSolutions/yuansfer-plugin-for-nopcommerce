@@ -98,6 +98,11 @@ namespace Nop.Plugin.Payments.Yuansfer
                 /// </summary>
                 public static string RefundPath => "/app-data-search/v3/refund";
             }
+
+            /// <summary>
+            /// Gets the URL to request demo
+            /// </summary>
+            public static string RequestDemoUrl => "https://portal.yuansfer.com/api/pluginDownloadRecord/add";
         }
     }
 }

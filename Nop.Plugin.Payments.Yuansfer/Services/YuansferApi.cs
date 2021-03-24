@@ -13,7 +13,7 @@ namespace Nop.Plugin.Payments.Yuansfer.Services
         #region Ctor
 
         public YuansferApi(YuansferPaymentSettings settings, HttpClient httpClient)
-            : base (settings, httpClient)
+            : base(settings, httpClient)
         {
         }
 
@@ -35,6 +35,14 @@ namespace Nop.Plugin.Payments.Yuansfer.Services
                 throw new ArgumentNullException(nameof(request));
 
             return PostAsync<ApiResponse<CreateRefundPayload>>(Defaults.Api.Endpoints.RefundPath, request);
+        }
+
+        public Task<ApiResponse<MerchantInfoPayload>> RequestDemoAsync(MerchantInfoRequest request)
+        {
+            if (request is null)
+                throw new ArgumentNullException(nameof(request));
+
+            return PostAsync<ApiResponse<MerchantInfoPayload>>(Defaults.Api.RequestDemoUrl, request);
         }
 
         #endregion
