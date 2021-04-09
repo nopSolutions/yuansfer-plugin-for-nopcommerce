@@ -16,27 +16,27 @@ namespace Nop.Plugin.Payments.Yuansfer.Validators
         {
             RuleFor(model => model.BaseApiUrl)
                 .NotEmpty()
-                .WithMessage(localizationService.GetResource("Plugins.Payments.Yuansfer.Fields.BaseApiUrl.Required"))
+                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Payments.Yuansfer.Fields.BaseApiUrl.Required"))
                 .When(model => string.IsNullOrEmpty(model.MerchantEmail));
 
             RuleFor(model => model.MerchantId)
                 .NotEmpty()
-                .WithMessage(localizationService.GetResource("Plugins.Payments.Yuansfer.Fields.MerchantId.Required"))
+                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Payments.Yuansfer.Fields.MerchantId.Required"))
                 .When(model => string.IsNullOrEmpty(model.MerchantEmail));
 
             RuleFor(model => model.StoreId)
                 .NotEmpty()
-                .WithMessage(localizationService.GetResource("Plugins.Payments.Yuansfer.Fields.StoreId.Required"))
+                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Payments.Yuansfer.Fields.StoreId.Required"))
                 .When(model => string.IsNullOrEmpty(model.MerchantEmail));
 
             RuleFor(model => model.ApiToken)
                 .NotEmpty()
-                .WithMessage(localizationService.GetResource("Plugins.Payments.Yuansfer.Fields.ApiToken.Required"))
+                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Payments.Yuansfer.Fields.ApiToken.Required"))
                 .When(model => string.IsNullOrEmpty(model.MerchantEmail));
 
             RuleFor(model => model.PaymentChannels)
                 .NotEmpty()
-                .WithMessage(localizationService.GetResource("Plugins.Payments.Yuansfer.Fields.PaymentChannels.Required"))
+                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Payments.Yuansfer.Fields.PaymentChannels.Required"))
                 .When(model => string.IsNullOrEmpty(model.MerchantEmail));
         }
 

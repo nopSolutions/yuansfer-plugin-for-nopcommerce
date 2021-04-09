@@ -1,13 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net5.0</TargetFramework>
     <Copyright>Copyright © Nop Solutions, Ltd</Copyright>
     <Company>Nop Solutions, Ltd</Company>
     <Authors>Nop Solutions, Ltd</Authors>
-    <PackageLicenseUrl></PackageLicenseUrl>
-    <PackageProjectUrl>https://www.nopcommerce.com/</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/nopSolutions/nopCommerce</RepositoryUrl>
+    <PackageLicenseUrl>https://github.com/nopSolutions/yuansfer-plugin-for-nopcommerce/blob/nopCommerce-4.40/LICENSE.md</PackageLicenseUrl>
+    <RepositoryUrl>https://github.com/nopSolutions/yuansfer-plugin-for-nopcommerce</RepositoryUrl>
+    <PackageProjectUrl>https://www.nopcommerce.com/yuansfer-payment-module</PackageProjectUrl>
     <RepositoryType>Git</RepositoryType>
     <OutputPath>..\..\Presentation\Nop.Web\Plugins\Payments.Yuansfer</OutputPath>
     <OutDir>$(OutputPath)</OutDir>

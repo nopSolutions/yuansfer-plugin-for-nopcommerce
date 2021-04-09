@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Nop.Core;
 using Nop.Core.Domain.Orders;
@@ -62,14 +63,14 @@ namespace Nop.Plugin.Payments.Yuansfer.Controllers
 
         #region Methods
 
-        public IActionResult Configure()
+        public async Task<IActionResult> Configure()
         {
-            if (!_permissionService.Authorize(StandardPermissionProvider.ManagePaymentMethods))
+            if (!await _permissionService.AuthorizeAsync(StandardPermissionProvider.ManagePaymentMethods))
                 return AccessDeniedView();
 
             //load settings for a chosen store scope
-            var storeScope = _storeContext.ActiveStoreScopeConfiguration;
-            var yuansferPaymentSettings = _settingService.LoadSetting<YuansferPaymentSettings>(storeScope);
+            var storeScope = await _storeContext.GetActiveStoreScopeConfigurationAsync();
+            var yuansferPaymentSettings = await _settingService.LoadSettingAsync<YuansferPaymentSettings>(storeScope);
 
             var model = new ConfigurationModel
             {
@@ -86,20 +87,20 @@ namespace Nop.Plugin.Payments.Yuansfer.Controllers
 
             if (storeScope > 0)
             {
-                model.BaseApiUrl_OverrideForStore = _settingService.SettingExists(yuansferPaymentSettings, x => x.BaseApiUrl, storeScope);
-                model.MerchantId_OverrideForStore = _settingService.SettingExists(yuansferPaymentSettings, x => x.MerchantId, storeScope);
-                model.StoreId_OverrideForStore = _settingService.SettingExists(yuansferPaymentSettings, x => x.StoreId, storeScope);
-                model.ApiToken_OverrideForStore = _settingService.SettingExists(yuansferPaymentSettings, x => x.ApiToken, storeScope);
-                model.PaymentChannels_OverrideForStore = _settingService.SettingExists(yuansferPaymentSettings, x => x.PaymentChannels, storeScope);
-                model.AdditionalFee_OverrideForStore = _settingService.SettingExists(yuansferPaymentSettings, x => x.AdditionalFee, storeScope);
-                model.AdditionalFeePercentage_OverrideForStore = _settingService.SettingExists(yuansferPaymentSettings, x => x.AdditionalFeePercentage, storeScope);
+                model.BaseApiUrl_OverrideForStore = await _settingService.SettingExistsAsync(yuansferPaymentSettings, x => x.BaseApiUrl, storeScope);
+                model.MerchantId_OverrideForStore = await _settingService.SettingExistsAsync(yuansferPaymentSettings, x => x.MerchantId, storeScope);
+                model.StoreId_OverrideForStore = await _settingService.SettingExistsAsync(yuansferPaymentSettings, x => x.StoreId, storeScope);
+                model.ApiToken_OverrideForStore = await _settingService.SettingExistsAsync(yuansferPaymentSettings, x => x.ApiToken, storeScope);
+                model.PaymentChannels_OverrideForStore = await _settingService.SettingExistsAsync(yuansferPaymentSettings, x => x.PaymentChannels, storeScope);
+                model.AdditionalFee_OverrideForStore = await _settingService.SettingExistsAsync(yuansferPaymentSettings, x => x.AdditionalFee, storeScope);
+                model.AdditionalFeePercentage_OverrideForStore = await _settingService.SettingExistsAsync(yuansferPaymentSettings, x => x.AdditionalFeePercentage, storeScope);
             }
 
             //prices and total aren't rounded, so display warning
             if (!_shoppingCartSettings.RoundPricesDuringCalculation)
             {
                 var url = Url.Action("AllSettings", "Setting", new { settingName = nameof(ShoppingCartSettings.RoundPricesDuringCalculation) });
-                var warning = string.Format(_localizationService.GetResource("Plugins.Payments.Yuansfer.RoundingWarning"), url);
+                var warning = string.Format(await _localizationService.GetResourceAsync("Plugins.Payments.Yuansfer.RoundingWarning"), url);
                 _notificationService.WarningNotification(warning, false);
             }
 
@@ -107,17 +108,17 @@ namespace Nop.Plugin.Payments.Yuansfer.Controllers
         }
 
         [HttpPost]
-        public IActionResult Configure(ConfigurationModel model)
+        public async Task<IActionResult> Configure(ConfigurationModel model)
         {
-            if (!_permissionService.Authorize(StandardPermissionProvider.ManagePaymentMethods))
+            if (!await _permissionService.AuthorizeAsync(StandardPermissionProvider.ManagePaymentMethods))
                 return AccessDeniedView();
 
             if (!ModelState.IsValid)
-                return Configure();
+                return await Configure();
 
             //load settings for a chosen store scope
-            var storeScope = _storeContext.ActiveStoreScopeConfiguration;
-            var yuansferPaymentSettings = _settingService.LoadSetting<YuansferPaymentSettings>(storeScope);
+            var storeScope = await _storeContext.GetActiveStoreScopeConfigurationAsync();
+            var yuansferPaymentSettings = await _settingService.LoadSettingAsync<YuansferPaymentSettings>(storeScope);
 
             //save settings
             yuansferPaymentSettings.BaseApiUrl = model.BaseApiUrl;
@@ -132,46 +133,49 @@ namespace Nop.Plugin.Payments.Yuansfer.Controllers
              * This behavior can increase performance because cached settings will not be cleared 
              * and loaded from database after each update */
 
-            _settingService.SaveSettingOverridablePerStore(yuansferPaymentSettings, x => x.BaseApiUrl, model.BaseApiUrl_OverrideForStore, storeScope, false);
-            _settingService.SaveSettingOverridablePerStore(yuansferPaymentSettings, x => x.MerchantId, model.MerchantId_OverrideForStore, storeScope, false);
-            _settingService.SaveSettingOverridablePerStore(yuansferPaymentSettings, x => x.StoreId, model.StoreId_OverrideForStore, storeScope, false);
-            _settingService.SaveSettingOverridablePerStore(yuansferPaymentSettings, x => x.ApiToken, model.ApiToken_OverrideForStore, storeScope, false);
-            _settingService.SaveSettingOverridablePerStore(yuansferPaymentSettings, x => x.PaymentChannels, model.PaymentChannels_OverrideForStore, storeScope, false);
-            _settingService.SaveSettingOverridablePerStore(yuansferPaymentSettings, x => x.AdditionalFee, model.AdditionalFee_OverrideForStore, storeScope, false);
-            _settingService.SaveSettingOverridablePerStore(yuansferPaymentSettings, x => x.AdditionalFeePercentage, model.AdditionalFeePercentage_OverrideForStore, storeScope, false);
+            await _settingService.SaveSettingOverridablePerStoreAsync(yuansferPaymentSettings, x => x.BaseApiUrl, model.BaseApiUrl_OverrideForStore, storeScope, false);
+            await _settingService.SaveSettingOverridablePerStoreAsync(yuansferPaymentSettings, x => x.MerchantId, model.MerchantId_OverrideForStore, storeScope, false);
+            await _settingService.SaveSettingOverridablePerStoreAsync(yuansferPaymentSettings, x => x.StoreId, model.StoreId_OverrideForStore, storeScope, false);
+            await _settingService.SaveSettingOverridablePerStoreAsync(yuansferPaymentSettings, x => x.ApiToken, model.ApiToken_OverrideForStore, storeScope, false);
+            await _settingService.SaveSettingOverridablePerStoreAsync(yuansferPaymentSettings, x => x.PaymentChannels, model.PaymentChannels_OverrideForStore, storeScope, false);
+            await _settingService.SaveSettingOverridablePerStoreAsync(yuansferPaymentSettings, x => x.AdditionalFee, model.AdditionalFee_OverrideForStore, storeScope, false);
+            await _settingService.SaveSettingOverridablePerStoreAsync(yuansferPaymentSettings, x => x.AdditionalFeePercentage, model.AdditionalFeePercentage_OverrideForStore, storeScope, false);
 
             //now clear settings cache
-            _settingService.ClearCache();
+            await _settingService.ClearCacheAsync();
 
-            _notificationService.SuccessNotification(_localizationService.GetResource("Admin.Plugins.Saved"));
+            _notificationService.SuccessNotification(await _localizationService.GetResourceAsync("Admin.Plugins.Saved"));
 
-            return Configure();
+            return await Configure();
         }
 
         [HttpPost, ActionName("Configure")]
         [FormValueRequired("request-demo")]
-        public virtual IActionResult RequestDemo(ConfigurationModel model)
+        public async Task<IActionResult> RequestDemo(ConfigurationModel model)
         {
-            if (!_permissionService.Authorize(StandardPermissionProvider.ManagePaymentMethods))
+            if (!await _permissionService.AuthorizeAsync(StandardPermissionProvider.ManagePaymentMethods))
                 return AccessDeniedView();
 
             try
             {
+                var customer = await _workContext.GetCurrentCustomerAsync();
+                var fullName = await _customerService.GetCustomerFullNameAsync(customer);
                 var request = new MerchantInfoRequest
                 {
                     Email = model.MerchantEmail,
-                    ClientName = _customerService.GetCustomerFullName(_workContext.CurrentCustomer),
+                    ClientName = fullName,
                     Plugin = Defaults.Api.UserAgent
                 };
-                var response = _yuansferApi.RequestDemoAsync(request).Result;
-                _notificationService.SuccessNotification(_localizationService.GetResource("Plugins.Payments.Yuansfer.Fields.MerchantEmail.Success"));
+                var response = await _yuansferApi.RequestDemoAsync(request);
+
+                _notificationService.SuccessNotification(await _localizationService.GetResourceAsync("Plugins.Payments.Yuansfer.Fields.MerchantEmail.Success"));
             }
             catch (Exception exception)
             {
-                _notificationService.ErrorNotification(exception);
+                await _notificationService.ErrorNotificationAsync(exception);
             }
 
-            return Configure();
+            return await Configure();
         }
 
         #endregion

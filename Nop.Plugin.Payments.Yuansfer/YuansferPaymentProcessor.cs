@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
@@ -32,21 +33,20 @@ namespace Nop.Plugin.Payments.Yuansfer
     {
         #region Fields
 
-        private readonly YuansferApi _yuansferApi;
         private readonly CurrencySettings _currencySettings;
         private readonly IActionContextAccessor _actionContextAccessor;
         private readonly ICurrencyService _currencyService;
-        private readonly IOrderService _orderService;
         private readonly ILocalizationService _localizationService;
         private readonly INotificationService _notificationService;
+        private readonly IOrderService _orderService;
         private readonly IPaymentService _paymentService;
-        private readonly IProductService _productService;
         private readonly IProductAttributeFormatter _productAttributeFormatter;
+        private readonly IProductService _productService;
         private readonly ISettingService _settingService;
-        private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IUrlHelperFactory _urlHelperFactory;
-        private readonly IWorkContext _workContext;
         private readonly IWebHelper _webHelper;
+        private readonly IWorkContext _workContext;
+        private readonly YuansferApi _yuansferApi;
         private readonly YuansferService _yuansferService;
         private readonly YuansferPaymentSettings _yuansferPaymentSettings;
 
@@ -54,41 +54,38 @@ namespace Nop.Plugin.Payments.Yuansfer
 
         #region Ctor
 
-        public YuansferPaymentProcessor(
-            YuansferApi checkoutApi,
-            CurrencySettings currencySettings,
+        public YuansferPaymentProcessor(CurrencySettings currencySettings,
             IActionContextAccessor actionContextAccessor,
             ICurrencyService currencyService,
-            IOrderService orderService,
             ILocalizationService localizationService,
             INotificationService notificationService,
+            IOrderService orderService,
             IPaymentService paymentService,
-            IProductService productService,
             IProductAttributeFormatter productAttributeFormatter,
+            IProductService productService,
             ISettingService settingService,
-            IHttpContextAccessor httpContextAccessor,
             IUrlHelperFactory urlHelperFactory,
-            IWorkContext workContext,
             IWebHelper webHelper,
+            IWorkContext workContext,
+            YuansferApi yuansferApi,
             YuansferService yuansferService,
             YuansferPaymentSettings yuansferPaymentSettings
         )
         {
-            _yuansferApi = checkoutApi;
             _currencySettings = currencySettings;
             _actionContextAccessor = actionContextAccessor;
             _currencyService = currencyService;
-            _orderService = orderService;
             _localizationService = localizationService;
             _notificationService = notificationService;
+            _orderService = orderService;
             _paymentService = paymentService;
-            _productService = productService;
             _productAttributeFormatter = productAttributeFormatter;
+            _productService = productService;
             _settingService = settingService;
-            _httpContextAccessor = httpContextAccessor;
             _urlHelperFactory = urlHelperFactory;
-            _workContext = workContext;
             _webHelper = webHelper;
+            _workContext = workContext;
+            _yuansferApi = yuansferApi;
             _yuansferService = yuansferService;
             _yuansferPaymentSettings = yuansferPaymentSettings;
         }
@@ -101,57 +98,58 @@ namespace Nop.Plugin.Payments.Yuansfer
         /// Process a payment
         /// </summary>
         /// <param name="processPaymentRequest">Payment info required for an order processing</param>
-        /// <returns>Process payment result</returns>
-        public ProcessPaymentResult ProcessPayment(ProcessPaymentRequest processPaymentRequest)
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the process payment result
+        /// </returns>
+        public Task<ProcessPaymentResult> ProcessPaymentAsync(ProcessPaymentRequest processPaymentRequest)
         {
-            return new ProcessPaymentResult();
+            return Task.FromResult(new ProcessPaymentResult());
         }
 
         /// <summary>
         /// Post process payment (used by payment gateways that require redirecting to a third-party URL)
         /// </summary>
         /// <param name="postProcessPaymentRequest">Payment info required for an order processing</param>
-        public void PostProcessPayment(PostProcessPaymentRequest postProcessPaymentRequest)
+        /// <returns>A task that represents the asynchronous operation</returns>
+        public async Task PostProcessPaymentAsync(PostProcessPaymentRequest postProcessPaymentRequest)
         {
             if (postProcessPaymentRequest is null)
                 throw new ArgumentNullException(nameof(postProcessPaymentRequest));
 
-            var storeCurrency = _currencyService.GetCurrencyById(_currencySettings.PrimaryStoreCurrencyId);
-            if (storeCurrency == null)
-                throw new NopException("Primary store currency is not set");
+            var storeCurrency = await _currencyService.GetCurrencyByIdAsync(_currencySettings.PrimaryStoreCurrencyId)
+                ?? throw new NopException("Primary store currency is not set");
 
             var order = postProcessPaymentRequest.Order;
             var orderCustomValues = _paymentService.DeserializeCustomValues(order);
 
-            var paymentChannelKey = _localizationService.GetResource("Plugins.Payments.Yuansfer.PaymentChannel.Key");
+            var paymentChannelKey = await _localizationService.GetResourceAsync("Plugins.Payments.Yuansfer.PaymentChannel.Key");
             if (!orderCustomValues.TryGetValue(paymentChannelKey, out var vendor))
                 throw new NopException("The payment channel is not set");
 
+            var customer = await _workContext.GetCurrentCustomerAsync();
             var goods = new List<object>();
-            var orderItems = _orderService.GetOrderItems(order.Id);
+            var orderItems = await _orderService.GetOrderItemsAsync(order.Id);
             foreach (var item in orderItems)
             {
-                var product = _productService.GetProductById(item.ProductId);
-                if (product == null)
-                    throw new InvalidOperationException("Cannot get the product.");
+                var product = await _productService.GetProductByIdAsync(item.ProductId)
+                    ?? throw new InvalidOperationException("Cannot get the product.");
 
                 var productName = string.Empty;
                 if (string.IsNullOrEmpty(item.AttributesXml))
                     productName = product.Name;
                 else
                 {
-                    var customer = _workContext.CurrentCustomer;
-                    var attributeInfo = _productAttributeFormatter
-                        .FormatAttributes(product, item.AttributesXml, customer, ", ");
-
+                    var attributeInfo = await _productAttributeFormatter.FormatAttributesAsync(product, item.AttributesXml, customer, ", ");
                     productName = $"{product.Name} ({attributeInfo})";
                 }
 
                 goods.Add(new { goods_name = productName, quantity = item.Quantity.ToString() });
             }
 
-            var currentRequestProtocol = _webHelper.CurrentRequestProtocol;
+            var currentRequestProtocol = _webHelper.GetCurrentRequestProtocol();
             var urlHelper = _urlHelperFactory.GetUrlHelper(_actionContextAccessor.ActionContext);
+            var failUrl = urlHelper.RouteUrl(Defaults.OrderDetailsRouteName, new { orderId = order.Id }, currentRequestProtocol);
             var callbackUrl = urlHelper.RouteUrl(Defaults.CheckoutCompletedRouteName, new { orderId = order.Id }, currentRequestProtocol);
             var ipnUrl = urlHelper.RouteUrl(Defaults.SecurePayWebhookRouteName, null, currentRequestProtocol);
 
@@ -186,16 +184,15 @@ namespace Nop.Plugin.Payments.Yuansfer
             };
             request.VerifySign = CommonHelpers.GenerateSign(_yuansferPaymentSettings.ApiToken, signingParams);
 
-            var response = _yuansferApi.SecurePayAsync(request).GetAwaiter().GetResult();
+            var response = await _yuansferApi.SecurePayAsync(request);
             if (!string.IsNullOrEmpty(response?.Payload?.CashierUrl))
-                _httpContextAccessor.HttpContext.Response.Redirect(response.Payload.CashierUrl);
+                _actionContextAccessor.ActionContext.HttpContext.Response.Redirect(response.Payload.CashierUrl);
             else
             {
-                _notificationService.ErrorNotification(
-                    $"Error when calling Yuansfer secure pay endpoint. Code: {response?.Code}, Message: {response?.Message}.");
+                _notificationService
+                    .ErrorNotification($"Error when calling Yuansfer secure pay endpoint. Code: {response?.Code}, Message: {response?.Message}.");
 
-                var failUrl = urlHelper.RouteUrl(Defaults.OrderDetailsRouteName, new { orderId = order.Id }, _webHelper.CurrentRequestProtocol);
-                _httpContextAccessor.HttpContext.Response.Redirect(failUrl);
+                _actionContextAccessor.ActionContext.HttpContext.Response.Redirect(failUrl);
             }
         }
 
@@ -203,22 +200,26 @@ namespace Nop.Plugin.Payments.Yuansfer
         /// Returns a value indicating whether payment method should be hidden during checkout
         /// </summary>
         /// <param name="cart">Shopping cart</param>
-        /// <returns>true - hide; false - display.</returns>
-        public bool HidePaymentMethod(IList<ShoppingCartItem> cart)
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the rue - hide; false - display.
+        /// </returns>
+        public Task<bool> HidePaymentMethodAsync(IList<ShoppingCartItem> cart)
         {
-            //you can put any logic here
-            //for example, hide this payment method if all products in the cart are downloadable
-            //or hide this payment method if current customer is from certain country
-            return false;
+            return Task.FromResult(false);
         }
 
         /// <summary>
         /// Gets additional handling fee
         /// </summary>
-        /// <returns>Additional handling fee</returns>
-        public decimal GetAdditionalHandlingFee(IList<ShoppingCartItem> cart)
+        /// <param name="cart">Shopping cart</param>
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the additional handling fee
+        /// </returns>
+        public async Task<decimal> GetAdditionalHandlingFeeAsync(IList<ShoppingCartItem> cart)
         {
-            return _paymentService.CalculateAdditionalFee(cart,
+            return await _paymentService.CalculateAdditionalFeeAsync(cart,
                 _yuansferPaymentSettings.AdditionalFee, _yuansferPaymentSettings.AdditionalFeePercentage);
         }
 
@@ -226,26 +227,32 @@ namespace Nop.Plugin.Payments.Yuansfer
         /// Captures payment
         /// </summary>
         /// <param name="capturePaymentRequest">Capture payment request</param>
-        /// <returns>Capture payment result</returns>
-        public CapturePaymentResult Capture(CapturePaymentRequest capturePaymentRequest)
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the capture payment result
+        /// </returns>
+        public Task<CapturePaymentResult> CaptureAsync(CapturePaymentRequest capturePaymentRequest)
         {
-            return new CapturePaymentResult { Errors = new[] { "Capture method not supported" } };
+            return Task.FromResult(new CapturePaymentResult { Errors = new[] { "Capture method not supported" } });
         }
 
         /// <summary>
         /// Refunds a payment
         /// </summary>
         /// <param name="refundPaymentRequest">Request</param>
-        /// <returns>Result</returns>
-        public RefundPaymentResult Refund(RefundPaymentRequest refundPaymentRequest)
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the result
+        /// </returns>
+        public async Task<RefundPaymentResult> RefundAsync(RefundPaymentRequest refundPaymentRequest)
         {
             if (refundPaymentRequest is null)
                 throw new ArgumentNullException(nameof(refundPaymentRequest));
 
-            if (!_yuansferService.IsConfigured())
-                return new RefundPaymentResult { Errors = new[] { _localizationService.GetResource("Plugins.Payments.Yuansfer.IsNotConfigured") } };
+            if (!await _yuansferService.IsConfiguredAsync())
+                return new RefundPaymentResult { Errors = new[] { await _localizationService.GetResourceAsync("Plugins.Payments.Yuansfer.IsNotConfigured") } };
 
-            var storeCurrency = _currencyService.GetCurrencyById(_currencySettings.PrimaryStoreCurrencyId);
+            var storeCurrency = await _currencyService.GetCurrencyByIdAsync(_currencySettings.PrimaryStoreCurrencyId);
             if (storeCurrency == null)
                 return new RefundPaymentResult { Errors = new[] { "Primary store currency is not set" } };
 
@@ -270,7 +277,7 @@ namespace Nop.Plugin.Payments.Yuansfer
             };
             request.VerifySign = CommonHelpers.GenerateSign(_yuansferPaymentSettings.ApiToken, signingParams);
 
-            var response = _yuansferApi.CreateRefundAsync(request).GetAwaiter().GetResult();
+            var response = await _yuansferApi.CreateRefundAsync(request);
             if (response?.Payload == null)
                 return new RefundPaymentResult { Errors = new[] { $"Error when calling Yuansfer refund endpoint. Code: {response?.Code}, Message: {response?.Message}." } };
 
@@ -289,67 +296,77 @@ namespace Nop.Plugin.Payments.Yuansfer
         /// Voids a payment
         /// </summary>
         /// <param name="voidPaymentRequest">Request</param>
-        /// <returns>Result</returns>
-        public VoidPaymentResult Void(VoidPaymentRequest voidPaymentRequest)
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the result
+        /// </returns>
+        public Task<VoidPaymentResult> VoidAsync(VoidPaymentRequest voidPaymentRequest)
         {
-            return new VoidPaymentResult { Errors = new[] { "Void method not supported" } };
+            return Task.FromResult(new VoidPaymentResult { Errors = new[] { "Void method not supported" } });
         }
 
         /// <summary>
         /// Process recurring payment
         /// </summary>
         /// <param name="processPaymentRequest">Payment info required for an order processing</param>
-        /// <returns>Process payment result</returns>
-        public ProcessPaymentResult ProcessRecurringPayment(ProcessPaymentRequest processPaymentRequest)
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the process payment result
+        /// </returns>
+        public Task<ProcessPaymentResult> ProcessRecurringPaymentAsync(ProcessPaymentRequest processPaymentRequest)
         {
-            return new ProcessPaymentResult { Errors = new[] { "Recurring payment not supported" } };
+            return Task.FromResult(new ProcessPaymentResult { Errors = new[] { "Recurring payment not supported" } });
         }
 
         /// <summary>
         /// Cancels a recurring payment
         /// </summary>
         /// <param name="cancelPaymentRequest">Request</param>
-        /// <returns>Result</returns>
-        public CancelRecurringPaymentResult CancelRecurringPayment(CancelRecurringPaymentRequest cancelPaymentRequest)
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the result
+        /// </returns>
+        public Task<CancelRecurringPaymentResult> CancelRecurringPaymentAsync(CancelRecurringPaymentRequest cancelPaymentRequest)
         {
-            return new CancelRecurringPaymentResult { Errors = new[] { "Recurring payment not supported" } };
+            return Task.FromResult(new CancelRecurringPaymentResult { Errors = new[] { "Recurring payment not supported" } });
         }
 
         /// <summary>
         /// Gets a value indicating whether customers can complete a payment after order is placed but not completed (for redirection payment methods)
         /// </summary>
         /// <param name="order">Order</param>
-        /// <returns>Result</returns>
-        public bool CanRePostProcessPayment(Order order)
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the result
+        /// </returns>
+        public Task<bool> CanRePostProcessPaymentAsync(Order order)
         {
             if (order == null)
                 throw new ArgumentNullException(nameof(order));
 
-            //let's ensure that at least 5 seconds passed after order is placed
-            //P.S. there's no any particular reason for that. we just do it
-            if ((DateTime.UtcNow - order.CreatedOnUtc).TotalSeconds < 5)
-                return false;
-
-            return true;
+            return Task.FromResult(true);
         }
 
         /// <summary>
         /// Validate payment form
         /// </summary>
         /// <param name="form">The parsed form values</param>
-        /// <returns>List of validating errors</returns>
-        public IList<string> ValidatePaymentForm(IFormCollection form)
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the list of validating errors
+        /// </returns>
+        public async Task<IList<string>> ValidatePaymentFormAsync(IFormCollection form)
         {
             var errors = new List<string>();
 
-            if (!_yuansferService.IsConfigured())
-                errors.Add(_localizationService.GetResource("Plugins.Payments.Yuansfer.IsNotConfigured"));
+            if (!await _yuansferService.IsConfiguredAsync())
+                errors.Add(await _localizationService.GetResourceAsync("Plugins.Payments.Yuansfer.IsNotConfigured"));
 
             if (!form.TryGetValue(nameof(PaymentInfoModel.PaymentChannel), out var paymentChannel) ||
                 StringValues.IsNullOrEmpty(paymentChannel) ||
                 !_yuansferService.IsAvailablePaymentChannel(paymentChannel))
             {
-                errors.Add(_localizationService.GetResource("Plugins.Payments.Yuansfer.PaymentChannel.IsNotAvailable"));
+                errors.Add(await _localizationService.GetResourceAsync("Plugins.Payments.Yuansfer.PaymentChannel.IsNotAvailable"));
             }
 
             return errors;
@@ -359,13 +376,16 @@ namespace Nop.Plugin.Payments.Yuansfer
         /// Get payment information
         /// </summary>
         /// <param name="form">The parsed form values</param>
-        /// <returns>Payment info holder</returns>
-        public ProcessPaymentRequest GetPaymentInfo(IFormCollection form)
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the payment info holder
+        /// </returns>
+        public async Task<ProcessPaymentRequest> GetPaymentInfoAsync(IFormCollection form)
         {
             var paymentRequest = new ProcessPaymentRequest();
 
-            var paymentChannel = form[nameof(PaymentInfoModel.PaymentChannel)].ToString();
-            var paymentChannelKey = _localizationService.GetResource("Plugins.Payments.Yuansfer.PaymentChannel.Key");
+            var paymentChannel = form.TryGetValue(nameof(PaymentInfoModel.PaymentChannel), out var value) ? value.ToString() : string.Empty;
+            var paymentChannelKey = await _localizationService.GetResourceAsync("Plugins.Payments.Yuansfer.PaymentChannel.Key");
             paymentRequest.CustomValues.Add(paymentChannelKey, paymentChannel);
 
             return paymentRequest;
@@ -391,18 +411,18 @@ namespace Nop.Plugin.Payments.Yuansfer
         /// <summary>
         /// Install the plugin
         /// </summary>
-        public override void Install()
+        /// <returns>A task that represents the asynchronous operation</returns>
+        public override async Task InstallAsync()
         {
             //settings
-            var settings = new YuansferPaymentSettings
+            await _settingService.SaveSettingAsync(new YuansferPaymentSettings
             {
                 BaseApiUrl = Defaults.Api.SandboxBaseUrl,
                 PaymentChannels = new List<string> { "alipay", "wechatpay", "paypal", "venmo", "unionpay" }
-            };
-            _settingService.SaveSetting(settings);
+            });
 
             //locales
-            _localizationService.AddPluginLocaleResource(new Dictionary<string, string>
+            await _localizationService.AddLocaleResourceAsync(new Dictionary<string, string>
             {
                 ["Plugins.Payments.Yuansfer.Instructions"] = @"
                     <p>
@@ -443,21 +463,31 @@ namespace Nop.Plugin.Payments.Yuansfer
                 ["Plugins.Payments.Yuansfer.Fields.AdditionalFeePercentage.Hint"] = "Determines whether to apply a percentage additional fee to the order total. If not enabled, a fixed value is used.",
             });
 
-            base.Install();
+            await base.InstallAsync();
         }
 
         /// <summary>
         /// Uninstall the plugin
         /// </summary>
-        public override void Uninstall()
+        /// <returns>A task that represents the asynchronous operation</returns>
+        public override async Task UninstallAsync()
         {
             //settings
-            _settingService.DeleteSetting<YuansferPaymentSettings>();
+            await _settingService.DeleteSettingAsync<YuansferPaymentSettings>();
 
             //locales
-            _localizationService.DeletePluginLocaleResources("Plugins.Payments.Yuansfer");
+            await _localizationService.DeleteLocaleResourcesAsync("Plugins.Payments.Yuansfer");
 
-            base.Uninstall();
+            await base.UninstallAsync();
+        }
+
+        /// <summary>
+        /// Gets a payment method description that will be displayed on checkout pages in the public store
+        /// </summary>
+        /// <returns>A task that represents the asynchronous operation</returns>
+        public async Task<string> GetPaymentMethodDescriptionAsync()
+        {
+            return await _localizationService.GetResourceAsync("Plugins.Payments.Yuansfer.PaymentMethodDescription");
         }
 
         #endregion
@@ -498,15 +528,6 @@ namespace Nop.Plugin.Payments.Yuansfer
         /// Gets a value indicating whether we should display a payment information page for this plugin
         /// </summary>
         public bool SkipPaymentInfo => false;
-
-        /// <summary>
-        /// Gets a payment method description that will be displayed on checkout pages in the public store
-        /// </summary>
-        /// <remarks>
-        /// return description of this payment method to be display on "payment method" checkout step. good practice is to make it localizable
-        /// for example, for a redirection payment method, description may be like this: "You will be redirected to PayPal site to complete the payment"
-        /// </remarks>
-        public string PaymentMethodDescription => _localizationService.GetResource("Plugins.Payments.Yuansfer.PaymentMethodDescription");
 
         #endregion
     }

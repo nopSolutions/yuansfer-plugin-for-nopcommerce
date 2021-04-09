@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Nop.Plugin.Payments.Yuansfer.Models;
 using Nop.Plugin.Payments.Yuansfer.Services;
@@ -15,32 +16,34 @@ namespace Nop.Plugin.Payments.Yuansfer.Components
     {
         #region Fields
 
-        private readonly YuansferService _yuansferService;
         private readonly ILocalizationService _localizationService;
+        private readonly YuansferService _yuansferService;
 
         #endregion
 
         #region Ctor
 
-        public PaymentInfoViewComponent(
-            YuansferService yuansferService, 
-            ILocalizationService localizationService
-        )
+        public PaymentInfoViewComponent(ILocalizationService localizationService,
+            YuansferService yuansferService)
         {
-            _yuansferService = yuansferService;
             _localizationService = localizationService;
+            _yuansferService = yuansferService;
         }
 
         #endregion
 
         #region Methods
 
-        public IViewComponentResult Invoke()
+        /// <summary>
+        /// Invoke view component
+        /// </summary>
+        /// <returns>A task that represents the asynchronous operation whose result contains the view component result</returns>
+        public async Task<IViewComponentResult> InvokeAsync()
         {
             var model = new PaymentInfoModel();
 
-            if (!_yuansferService.IsConfigured())
-                ModelState.AddModelError(string.Empty, _localizationService.GetResource("Plugins.Payments.Yuansfer.IsNotConfigured"));
+            if (!await _yuansferService.IsConfiguredAsync())
+                ModelState.AddModelError(string.Empty, await _localizationService.GetResourceAsync("Plugins.Payments.Yuansfer.IsNotConfigured"));
             else
             {
                 model.AvailablePaymentChannels = Defaults.AvailablePaymentChannels

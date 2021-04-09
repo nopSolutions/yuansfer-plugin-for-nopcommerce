@@ -16,10 +16,12 @@ namespace Nop.Plugin.Payments.Yuansfer.Infrastructure
         /// <param name="endpointRouteBuilder">Route builder</param>
         public void RegisterRoutes(IEndpointRouteBuilder endpointRouteBuilder)
         {
-            endpointRouteBuilder.MapControllerRoute(Defaults.ConfigurationRouteName, "Plugins/Yuansfer/Configure",
+            endpointRouteBuilder.MapControllerRoute(Defaults.ConfigurationRouteName,
+                "Plugins/Yuansfer/Configure",
                 new { controller = "YuansferPayment", action = "Configure", area = AreaNames.Admin });
 
-            endpointRouteBuilder.MapControllerRoute(Defaults.SecurePayWebhookRouteName, "Plugins/Yuansfer/SecurePayWebhook",
+            endpointRouteBuilder.MapControllerRoute(Defaults.SecurePayWebhookRouteName,
+                "Plugins/Yuansfer/SecurePayWebhook",
                 new { controller = "YuansferWebhook", action = "SecurePayWebhook" });
         }
 

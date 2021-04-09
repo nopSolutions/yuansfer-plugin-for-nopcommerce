@@ -47,20 +47,20 @@ namespace Nop.Plugin.Payments.Yuansfer
         /// <summary>
         /// Gets the available payment channels
         /// </summary>
-        public static IList<SelectListItem> AvailablePaymentChannels => new List<SelectListItem>
+        public static List<SelectListItem> AvailablePaymentChannels => new()
         {
-            new SelectListItem("AliPay","alipay"),
-            new SelectListItem("WeChat Pay","wechatpay"),
-            new SelectListItem("Union Pay","unionpay"),
-            new SelectListItem("PayPal","paypal"),
-            new SelectListItem("Venmo","venmo"),
-            new SelectListItem("Credit card","creditcard"),
-            new SelectListItem("TrueMoney","truemoney"),
-            new SelectListItem("Alipay HK","alipay_hk"),
-            new SelectListItem("TouchNGO","tng"),
-            new SelectListItem("GCash","gcash"),
-            new SelectListItem("Dana","dana"),
-            new SelectListItem("KakaoPay","kakaopay"),
+            new SelectListItem("AliPay", "alipay"),
+            new SelectListItem("WeChat Pay", "wechatpay"),
+            new SelectListItem("Union Pay", "unionpay"),
+            new SelectListItem("PayPal", "paypal"),
+            new SelectListItem("Venmo", "venmo"),
+            new SelectListItem("Credit card", "creditcard"),
+            new SelectListItem("TrueMoney", "truemoney"),
+            new SelectListItem("Alipay HK", "alipay_hk"),
+            new SelectListItem("TouchNGO", "tng"),
+            new SelectListItem("GCash", "gcash"),
+            new SelectListItem("Dana", "dana"),
+            new SelectListItem("KakaoPay", "kakaopay"),
         };
 
         /// <summary>
@@ -76,7 +76,7 @@ namespace Nop.Plugin.Payments.Yuansfer
             /// <summary>
             /// Gets the user agent
             /// </summary>
-            public static string UserAgent => $"nopCommerce-{NopVersion.CurrentVersion}";
+            public static string UserAgent => $"nopCommerce-{NopVersion.CURRENT_VERSION}";
 
             /// <summary>
             /// Gets the default timeout

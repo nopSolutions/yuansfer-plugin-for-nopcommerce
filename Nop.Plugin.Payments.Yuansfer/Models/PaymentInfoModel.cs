@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Nop.Web.Framework.Models;
 
@@ -8,7 +7,7 @@ namespace Nop.Plugin.Payments.Yuansfer.Models
     /// <summary>
     /// Represents a payment info model
     /// </summary>
-    public class PaymentInfoModel : BaseNopModel
+    public record PaymentInfoModel : BaseNopModel
     {
         #region Properties
 
@@ -29,7 +28,7 @@ namespace Nop.Plugin.Payments.Yuansfer.Models
         public PaymentInfoModel()
         {
             AvailablePaymentChannels = new List<SelectListItem>();
-        } 
+        }
 
         #endregion
     }
