@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
@@ -161,14 +162,55 @@ namespace Nop.Plugin.Payments.Yuansfer
                 StoreId = _yuansferPaymentSettings.StoreId,
                 Vendor = vendor.ToString(),
                 Terminal = "ONLINE",
-                Amount = order.OrderTotal.ToString(CultureInfo.InvariantCulture),
-                Currency = storeCurrency.CurrencyCode,
-                SettleCurrency = storeCurrency.CurrencyCode,
+                SettleCurrency = "USD",
                 CallbackUrl = callbackUrl,
                 IpnUrl = ipnUrl,
                 GoodsInfo = JsonConvert.SerializeObject(goods),
                 Reference = order.OrderGuid.ToString()
             };
+
+            void redirectToErrorPage(string message)
+            {
+                _notificationService.ErrorNotification(message);
+
+                var failUrl = urlHelper.RouteUrl(Defaults.OrderDetailsRouteName, new { orderId = order.Id }, _webHelper.CurrentRequestProtocol);
+                _httpContextAccessor.HttpContext.Response.Redirect(failUrl);
+            };
+
+            var transactionAmount = decimal.Zero;
+
+            var supportedVendorCurrencies = GetSupportedCurrenciesByVendor(request.Vendor);
+            if (supportedVendorCurrencies.SupportedCurrencyCodes
+                    .Any(code => code.Equals(storeCurrency.CurrencyCode, StringComparison.InvariantCultureIgnoreCase)))
+            {
+                // primary store currency supported by vendor
+                request.Currency = storeCurrency.CurrencyCode;
+                transactionAmount = order.OrderTotal;
+            }
+            else
+            {
+                // primary store currency not supported by vendor, then convert transaction amount to vendor currency
+                var targetCurrency = _currencyService.GetCurrencyByCode(supportedVendorCurrencies.PrimaryCurrencyCode);
+                if (targetCurrency == null)
+                    throw new NopException($"Cannot convert order total to vendor currency. The currency by ISO code '{supportedVendorCurrencies.PrimaryCurrencyCode}' not found.");
+
+                request.Currency = targetCurrency.CurrencyCode;
+                transactionAmount = _currencyService.ConvertCurrency(order.OrderTotal, storeCurrency, targetCurrency);
+            }
+
+            // validate amount for some vendors
+            if (request.Vendor == "kakaopay" && transactionAmount < 50)
+            {
+                redirectToErrorPage("Total amount must be greater or equal to 50!");
+                return;
+            }
+            else if (request.Vendor == "dana" && transactionAmount < 300)
+            {
+                redirectToErrorPage("Total amount must be greater or equal to 300!");
+                return;
+            }
+
+            request.Amount = transactionAmount.ToString(CultureInfo.InvariantCulture);
 
             var signingParams = new[]
             {
@@ -190,13 +232,7 @@ namespace Nop.Plugin.Payments.Yuansfer
             if (!string.IsNullOrEmpty(response?.Payload?.CashierUrl))
                 _httpContextAccessor.HttpContext.Response.Redirect(response.Payload.CashierUrl);
             else
-            {
-                _notificationService.ErrorNotification(
-                    $"Error when calling Yuansfer secure pay endpoint. Code: {response?.Code}, Message: {response?.Message}.");
-
-                var failUrl = urlHelper.RouteUrl(Defaults.OrderDetailsRouteName, new { orderId = order.Id }, _webHelper.CurrentRequestProtocol);
-                _httpContextAccessor.HttpContext.Response.Redirect(failUrl);
-            }
+                redirectToErrorPage($"Error when calling Yuansfer secure pay endpoint. Code: {response?.Code}, Message: {response?.Message}.");
         }
 
         /// <summary>
@@ -255,7 +291,7 @@ namespace Nop.Plugin.Payments.Yuansfer
                 StoreId = _yuansferPaymentSettings.StoreId,
                 RefundAmount = refundPaymentRequest.AmountToRefund.ToString(CultureInfo.InvariantCulture),
                 Currency = storeCurrency.CurrencyCode,
-                SettleCurrency = storeCurrency.CurrencyCode,
+                SettleCurrency = "USD",
                 TransactionId = refundPaymentRequest.Order.CaptureTransactionId
             };
 
@@ -436,7 +472,7 @@ namespace Nop.Plugin.Payments.Yuansfer
                 ["Plugins.Payments.Yuansfer.Fields.StoreId.Hint"] = "Enter the store No.",
                 ["Plugins.Payments.Yuansfer.Fields.PaymentChannels"] = "Payment channels",
                 ["Plugins.Payments.Yuansfer.Fields.PaymentChannels.Required"] = "The payment channels are required.",
-                ["Plugins.Payments.Yuansfer.Fields.PaymentChannels.Hint"] = "Select the payment channels available in checkout.",
+                ["Plugins.Payments.Yuansfer.Fields.PaymentChannels.Hint"] = "Select the payment channels available in checkout. Please note that the primary store currency should supported by payment channel(s).",
                 ["Plugins.Payments.Yuansfer.Fields.AdditionalFee"] = "Additional fee",
                 ["Plugins.Payments.Yuansfer.Fields.AdditionalFee.Hint"] = "Enter additional fee to charge your customers.",
                 ["Plugins.Payments.Yuansfer.Fields.AdditionalFeePercentage"] = "Additional fee. Use percentage",
@@ -507,6 +543,27 @@ namespace Nop.Plugin.Payments.Yuansfer
         /// for example, for a redirection payment method, description may be like this: "You will be redirected to PayPal site to complete the payment"
         /// </remarks>
         public string PaymentMethodDescription => _localizationService.GetResource("Plugins.Payments.Yuansfer.PaymentMethodDescription");
+
+        #endregion
+
+        #region Utilities
+
+        private (string PrimaryCurrencyCode, string[] SupportedCurrencyCodes) GetSupportedCurrenciesByVendor(string vendor)
+        {
+            return vendor switch
+            {
+                "wechatpay" => ("CNY", new[] { "CNY", "USD" }),
+                "alipay" => ("CNY", new[] { "CNY", "USD" }),
+                "unionpay" => ("CNY", new[] { "CNY", "USD" }),
+                "kakaopay" => ("KRW", new[] { "KRW" }),
+                "gcash" => ("PHP", new[] { "PHP" }),
+                "dana" => ("IDR", new[] { "IDR" }),
+                "tng" => ("MYR", new[] { "MYR" }),
+                "alipay_hk" => ("HKD", new[] { "HKD" }),
+                "truemoney" => ("THB", new[] { "THB" }),
+                _ => ("USD", new[] { "USD" }),
+            };
+        }
 
         #endregion
     }

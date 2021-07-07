@@ -34,11 +34,11 @@ namespace Nop.Plugin.Payments.Yuansfer.Extensions
 
         private static string MD5(string message)
         {
-            var messageBytes = Encoding.ASCII.GetBytes(message);
+            var messageBytes = Encoding.UTF8.GetBytes(message);
             using var cryptographer = new MD5CryptoServiceProvider();
             var hashBytes = cryptographer.ComputeHash(messageBytes);
 
-            return BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+            return BitConverter.ToString(hashBytes).Replace("-", string.Empty).ToLower();
         }
 
         #endregion
