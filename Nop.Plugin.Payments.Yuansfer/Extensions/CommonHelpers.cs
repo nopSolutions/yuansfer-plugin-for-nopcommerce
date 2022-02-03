@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
+using Cryptography = System.Security.Cryptography;
 
 namespace Nop.Plugin.Payments.Yuansfer.Extensions
 {
@@ -35,7 +35,7 @@ namespace Nop.Plugin.Payments.Yuansfer.Extensions
         private static string MD5(string message)
         {
             var messageBytes = Encoding.UTF8.GetBytes(message);
-            using var cryptographer = new MD5CryptoServiceProvider();
+            using var cryptographer = Cryptography.MD5.Create();
             var hashBytes = cryptographer.ComputeHash(messageBytes);
 
             return BitConverter.ToString(hashBytes).Replace("-", string.Empty).ToLower();

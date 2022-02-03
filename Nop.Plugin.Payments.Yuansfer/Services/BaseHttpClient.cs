@@ -44,7 +44,7 @@ namespace Nop.Plugin.Payments.Yuansfer.Services
             return CallAsync<TResponse>(() => HttpClient.GetAsync(requestUri), callerName);
         }
 
-        protected async virtual Task<TResponse> PostAsync<TResponse>(string requestUri, object request = null, [CallerMemberName] string callerName = "")
+        protected virtual async Task<TResponse> PostAsync<TResponse>(string requestUri, object request = null, [CallerMemberName] string callerName = "")
         {
             HttpContent body = null;
             if (request != null)

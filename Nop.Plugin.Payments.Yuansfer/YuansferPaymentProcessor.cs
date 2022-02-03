@@ -40,6 +40,7 @@ namespace Nop.Plugin.Payments.Yuansfer
         private readonly ILocalizationService _localizationService;
         private readonly INotificationService _notificationService;
         private readonly IOrderService _orderService;
+        private readonly IOrderTotalCalculationService _orderTotalCalculationService;
         private readonly IPaymentService _paymentService;
         private readonly IProductAttributeFormatter _productAttributeFormatter;
         private readonly IProductService _productService;
@@ -61,6 +62,7 @@ namespace Nop.Plugin.Payments.Yuansfer
             ILocalizationService localizationService,
             INotificationService notificationService,
             IOrderService orderService,
+            IOrderTotalCalculationService orderTotalCalculationService,
             IPaymentService paymentService,
             IProductAttributeFormatter productAttributeFormatter,
             IProductService productService,
@@ -79,6 +81,7 @@ namespace Nop.Plugin.Payments.Yuansfer
             _localizationService = localizationService;
             _notificationService = notificationService;
             _orderService = orderService;
+            _orderTotalCalculationService = orderTotalCalculationService;
             _paymentService = paymentService;
             _productAttributeFormatter = productAttributeFormatter;
             _productService = productService;
@@ -256,7 +259,7 @@ namespace Nop.Plugin.Payments.Yuansfer
         /// </returns>
         public async Task<decimal> GetAdditionalHandlingFeeAsync(IList<ShoppingCartItem> cart)
         {
-            return await _paymentService.CalculateAdditionalFeeAsync(cart,
+            return await _orderTotalCalculationService.CalculatePaymentAdditionalFeeAsync(cart,
                 _yuansferPaymentSettings.AdditionalFee, _yuansferPaymentSettings.AdditionalFeePercentage);
         }
 
@@ -459,7 +462,7 @@ namespace Nop.Plugin.Payments.Yuansfer
             });
 
             //locales
-            await _localizationService.AddLocaleResourceAsync(new Dictionary<string, string>
+            await _localizationService.AddOrUpdateLocaleResourceAsync(new Dictionary<string, string>
             {
                 ["Plugins.Payments.Yuansfer.Instructions"] = @"
                     <p>

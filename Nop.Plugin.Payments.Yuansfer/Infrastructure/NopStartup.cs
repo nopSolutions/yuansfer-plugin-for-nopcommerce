@@ -20,6 +20,7 @@ namespace Nop.Plugin.Payments.Yuansfer.Infrastructure
         public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
         {
             services.AddHttpClient<YuansferApi>().WithProxy();
+            services.AddScoped<YuansferService>();
         }
 
         /// <summary>
@@ -33,6 +34,6 @@ namespace Nop.Plugin.Payments.Yuansfer.Infrastructure
         /// <summary>
         /// Gets order of this startup configuration implementation
         /// </summary>
-        public int Order => 101;
+        public int Order => 3000;
     }
 }
